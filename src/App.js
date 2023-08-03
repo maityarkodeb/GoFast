@@ -12,6 +12,10 @@ import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
+import InputLabel from '@mui/material/InputLabel';
+import MenuItem from '@mui/material/MenuItem';
+import FormControl from '@mui/material/FormControl';
+import Select from '@mui/material/Select';
 import Filter1Icon from '@mui/icons-material/Filter1';
 import Filter2Icon from '@mui/icons-material/Filter2';
 import Filter3Icon from '@mui/icons-material/Filter3';
@@ -22,11 +26,15 @@ function App() {
   const [gameValue, setGameValue] = useState(null);
   const [showGameData, setShowGameData] = useState(false);
   const [showLb, setShowLb] = useState(false);
+  const [showVars, setShowVars] = useState(false);
   const [gameCats, setGameCats] = useState([]);
   const [category, setCategory] = useState('');
   const [topRunners, setTopRunners] = useState([]);
   const [topTimes, setTopTimes] = useState([]);
-
+  const [variables, setVariables] = useState([]);
+  const [varName, setVarName] = useState('');
+  const [varValue, setVarValue] = useState('');
+  
   function createData(place, runner, time) {
     return { place, runner, time };
   }
@@ -55,6 +63,7 @@ function App() {
         // console.log('cats', filterTempData);
         setGameCats(filterTempData);
         setShowGameData(true);
+        setShowVars(false);
         setShowLb(false);
       });
     }
@@ -78,6 +87,7 @@ function App() {
 
   const handleCategory = (event, newValue) => {
     setCategory(newValue);
+    setVarValue('');
     fetch(`https://www.speedrun.com/api/v1/leaderboards/${gameValue.id}/category/${newValue}?top=3`)
     .then(response => response.json())
     .then(data => {
@@ -97,9 +107,33 @@ function App() {
         });
         setTopRunners(runners);
         setTopTimes(times);
+      });
+      return fetch(`https://www.speedrun.com/api/v1/categories/${newValue}/variables`)
+      .then(response => response.json())
+      .then(data => {
+        // console.log('vars', data);
+        let subcats = [];
+        data.data.forEach((item, index) => {
+          if(item['is-subcategory'] === true) {
+            setVarName(item.name);
+            for (const property in item.values.values) {
+              for (const property2 in item.values.values[property]) {
+                if (property2 === 'label') {
+                  subcats.push(item.values.values[property][property2]);
+                }
+              }
+            }
+          }
+        });
+        setVariables(subcats);
         setShowLb(true);
+        setShowVars(true);
       });
     });
+  }
+
+  const handleVarChange = event => {
+    setVarValue(event.target.value);
   }
 
   const convertTime = (seconds) => {
@@ -115,6 +149,7 @@ function App() {
   const debouncedOnGameInputChange = useMemo(() => debounce(onGameInputChange, 300), []);
 
   // console.log(gameValue);
+  // console.log('vars-simp', variables);
 
   return (
     <Container>
@@ -146,6 +181,24 @@ function App() {
             }
           </ToggleButtonGroup>
         </div>
+      }
+      {showVars &&
+        <FormControl style={{width: 240, marginTop: 20}}>
+          <InputLabel id="var-select-label">{varName}</InputLabel>
+          <Select
+            id="var-select"
+            value={varValue}
+            label={varName}
+            onChange={handleVarChange}
+          >
+            {
+              variables &&
+              variables.map((v, i) => {
+                return <MenuItem value={v} key={i}>{v}</MenuItem>
+              })
+            }
+          </Select>
+        </FormControl>
       }
       {showLb &&
         <TableContainer style={{width: 450, marginTop: 20}} component={Paper}>
