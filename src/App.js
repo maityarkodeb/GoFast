@@ -34,6 +34,7 @@ function App() {
   const [variables, setVariables] = useState([]);
   const [varName, setVarName] = useState('');
   const [varValue, setVarValue] = useState('');
+  const [varID, setVarID] = useState('');
   
   function createData(place, runner, time) {
     return { place, runner, time };
@@ -86,9 +87,38 @@ function App() {
   }
 
   const handleCategory = (event, newValue) => {
+    setShowLb(false);
     setCategory(newValue);
     setVarValue('');
-    fetch(`https://www.speedrun.com/api/v1/leaderboards/${gameValue.id}/category/${newValue}?top=3`)
+    fetch(`https://www.speedrun.com/api/v1/categories/${newValue}/variables`)
+    .then(response => response.json())
+    .then(data => {
+      // console.log('vars', data);
+      let subcats = [];
+      data.data.forEach((item, index) => {
+        if(item['is-subcategory'] === true) {
+          setVarName(item.name);
+          setVarID(item.id);
+          for (const property in item.values.values) {
+            let varObj = {};
+            varObj['var-value'] = property;
+            for (const property2 in item.values.values[property]) {
+              if (property2 === 'label') {
+                varObj['var-label'] = item.values.values[property][property2];
+                subcats.push(varObj);
+              }
+            }
+          }
+        }
+      });
+      setVariables(subcats);
+      setShowVars(true);
+    });
+  }
+
+  const handleVarChange = event => {
+    setVarValue(event.target.value);
+    fetch(`https://www.speedrun.com/api/v1/leaderboards/${gameValue.id}/category/${category}?top=3&var-${varID}=${event.target.value}`)
     .then(response => response.json())
     .then(data => {
       // console.log('lb', data);
@@ -107,33 +137,9 @@ function App() {
         });
         setTopRunners(runners);
         setTopTimes(times);
-      });
-      return fetch(`https://www.speedrun.com/api/v1/categories/${newValue}/variables`)
-      .then(response => response.json())
-      .then(data => {
-        // console.log('vars', data);
-        let subcats = [];
-        data.data.forEach((item, index) => {
-          if(item['is-subcategory'] === true) {
-            setVarName(item.name);
-            for (const property in item.values.values) {
-              for (const property2 in item.values.values[property]) {
-                if (property2 === 'label') {
-                  subcats.push(item.values.values[property][property2]);
-                }
-              }
-            }
-          }
-        });
-        setVariables(subcats);
         setShowLb(true);
-        setShowVars(true);
       });
     });
-  }
-
-  const handleVarChange = event => {
-    setVarValue(event.target.value);
   }
 
   const convertTime = (seconds) => {
@@ -194,7 +200,7 @@ function App() {
             {
               variables &&
               variables.map((v, i) => {
-                return <MenuItem value={v} key={i}>{v}</MenuItem>
+                return <MenuItem value={v['var-value']} key={i}>{v['var-label']}</MenuItem>
               })
             }
           </Select>
